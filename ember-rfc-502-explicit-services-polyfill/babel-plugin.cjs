@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { ImportUtil } = require("babel-import-util");
 
 const POLYFILL = "ember-rfc-502-explicit-services-polyfill";
 const OWNER_HELPERS = `${POLYFILL}/owner`;
@@ -99,39 +100,37 @@ function explicitServicesPolyfill(babel) {
     name: POLYFILL,
     visitor: {
       Program(path, state) {
-        state.skip = !shouldTransform(state.filename);
+        if (!shouldTransform(state.filename)) return;
 
-        if (state.skip) return;
+        let importUtil = new ImportUtil(babel, path);
 
-        state.program = path;
-        state.helpers = new Map();
+        moveServiceImports(path, importUtil);
 
         for (let statement of path.get("body")) {
-          if (statement.isImportDeclaration()) {
-            rewriteImport(statement);
-          } else if (statement.isExportNamedDeclaration()) {
-            rewriteExport(statement);
-          }
+          if (statement.isExportNamedDeclaration()) rewriteExport(statement);
         }
+
+        path.traverse(ownerCalls(importUtil));
       },
+    },
+  };
 
-      CallExpression(path, state) {
-        if (state.skip) return;
-
+  function ownerCalls(importUtil) {
+    return {
+      CallExpression(path) {
         let method = ownerMethod(path.node);
 
         if (!method) return;
 
-        path.replaceWith(
-          t.callExpression(helperFor(state, method), [
-            path.node.callee.object,
-            ...path.node.arguments,
-          ]),
+        let { object } = path.node.callee;
+        let args = path.node.arguments;
+
+        importUtil.replaceWith(path, (i) =>
+          t.callExpression(i.import(OWNER_HELPERS, method), [object, ...args]),
         );
       },
 
-      OptionalCallExpression(path, state) {
-        if (state.skip) return;
+      OptionalCallExpression(path) {
         if (path.node.optional || !path.node.callee.optional) return;
         if (continuesChain(path)) return;
 
@@ -139,26 +138,25 @@ function explicitServicesPolyfill(babel) {
 
         if (!method) return;
 
-        let receiver = path.scope.generateUidIdentifierBasedOnNode(path.node.callee.object);
+        let { object } = path.node.callee;
+        let args = path.node.arguments;
+        let receiver = path.scope.generateUidIdentifierBasedOnNode(object);
 
         path.scope.push({ id: receiver });
-        path.replaceWith(
+        importUtil.replaceWith(path, (i) =>
           t.conditionalExpression(
             t.binaryExpression(
               "==",
-              t.assignmentExpression("=", t.cloneNode(receiver), path.node.callee.object),
+              t.assignmentExpression("=", t.cloneNode(receiver), object),
               t.nullLiteral(),
             ),
             t.unaryExpression("void", t.numericLiteral(0)),
-            t.callExpression(helperFor(state, method), [
-              t.cloneNode(receiver),
-              ...path.node.arguments,
-            ]),
+            t.callExpression(i.import(OWNER_HELPERS, method), [t.cloneNode(receiver), ...args]),
           ),
         );
       },
-    },
-  };
+    };
+  }
 
   function ownerMethod(node) {
     let callee = node.callee;
@@ -204,55 +202,36 @@ function explicitServicesPolyfill(babel) {
     );
   }
 
-  function helperFor(state, method) {
-    let existing = state.helpers.get(method);
+  function moveServiceImports(program, importUtil) {
+    let moves = [];
 
-    if (existing) return t.cloneNode(existing);
+    for (let statement of program.get("body")) {
+      if (!statement.isImportDeclaration()) continue;
+      if (statement.node.source.value !== SERVICE || statement.node.importKind === "type") {
+        continue;
+      }
 
-    let local = state.program.scope.generateUidIdentifier(method);
-    let [inserted] = state.program.unshiftContainer(
-      "body",
-      t.importDeclaration(
-        [t.importSpecifier(local, t.identifier(method))],
-        t.stringLiteral(OWNER_HELPERS),
-      ),
-    );
+      for (let specifier of statement.get("specifiers")) {
+        if (!specifier.isImportSpecifier() || specifier.node.importKind === "type") continue;
 
-    state.program.scope.registerDeclaration(inserted);
-    state.helpers.set(method, local);
+        let name = exportedName(specifier.node.imported);
 
-    return t.cloneNode(local);
-  }
+        if (!POLYFILLED_EXPORTS.has(name)) continue;
 
-  function rewriteImport(path) {
-    let { node } = path;
+        let local = specifier.node.local.name;
+        let references = program.scope.getBinding(local)?.referencePaths ?? [];
 
-    if (node.source.value !== SERVICE) return false;
-    if (node.importKind === "type") return false;
-
-    let { polyfilled, rest } = partition(node.specifiers, (specifier) =>
-      specifier.type === "ImportSpecifier" && specifier.importKind !== "type"
-        ? exportedName(specifier.imported)
-        : undefined,
-    );
-
-    if (polyfilled.length === 0) return false;
-
-    node.source = t.stringLiteral(POLYFILL);
-
-    if (rest.length === 0) return true;
-
-    node.specifiers = polyfilled;
-
-    for (let specifier of rest) {
-      path.scope.removeOwnBinding(specifier.local.name);
+        moves.push({ name, local, references });
+      }
     }
 
-    let [inserted] = path.insertAfter(t.importDeclaration(rest, t.stringLiteral(SERVICE)));
+    for (let { name } of moves) importUtil.removeImport(SERVICE, name);
 
-    path.scope.registerDeclaration(inserted);
-
-    return true;
+    for (let { name, local, references } of moves) {
+      for (let reference of references) {
+        importUtil.replaceWith(reference, (i) => i.import(POLYFILL, name, local));
+      }
+    }
   }
 
   function rewriteExport(path) {

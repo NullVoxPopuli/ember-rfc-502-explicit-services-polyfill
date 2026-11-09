@@ -14,6 +14,9 @@ importers:
       '@embroider/addon-shim':
         specifier: ^1.10.0
         version: 1.11.0
+      babel-import-util:
+        specifier: ^3.0.1
+        version: 3.0.1
     devDependencies:
       '@babel/core':
         specifier: ^7.29.13
@@ -12593,11 +12596,13 @@ snapshots:
   ember-rfc-502-explicit-services-polyfill@file:ember-rfc-502-explicit-services-polyfill(ember-source@6.7.0(@glimmer/component@2.2.1)(rsvp@4.8.5)):
     dependencies:
       '@embroider/addon-shim': 1.11.0
+      babel-import-util: 3.0.1
       ember-source: 6.7.0(@glimmer/component@2.2.1)(rsvp@4.8.5)
 
   ember-rfc-502-explicit-services-polyfill@file:ember-rfc-502-explicit-services-polyfill(ember-source@7.3.1(@glimmer/component@2.2.1)):
     dependencies:
       '@embroider/addon-shim': 1.11.0
+      babel-import-util: 3.0.1
       ember-source: 7.3.1(@glimmer/component@2.2.1)
 
   ember-rfc176-data@0.3.18: {}

@@ -41,7 +41,8 @@
     "test:babel": "node --test \"tests/babel/*.test.mjs\""
   },
   "dependencies": {
-    "@embroider/addon-shim": "^1.10.0"
+    "@embroider/addon-shim": "^1.10.0",
+    "babel-import-util": "^3.0.1"
   },
   "peerDependencies": {
     "ember-source": ">= 4.12.0"

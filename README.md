@@ -6,14 +6,14 @@ Use classes as service keys, as proposed in [RFC 502: Explicit Service Injection
 import Component from "@glimmer/component";
 import { service } from "@ember/service";
 
-import Notifications from "my-app/services/notifications";
+import Notifications from "my-app/notifications/service";
 
 export default class Demo extends Component {
   @service(Notifications) notifications;
 }
 ```
 
-"Go to definition" on `Notifications` opens the service. The service does not have to live in `app/services`, and it does not have to extend `Service`.
+"Go to definition" on `Notifications` opens the service. The service does not have to extend `Service`, and it should not live in `app/services`. See [Where to put services](#where-to-put-services).
 
 ## Install
 
@@ -74,25 +74,19 @@ const app = new EmberApp(defaults, {
 
 ### ember.nvp apps
 
-Add the plugin to `babel.config.js` as for Vite apps. `@nullvoxpopuli/ember-vite` uses oxc for files that do not need babel, so also tell it to use babel for these imports, in `vite.config.mjs`:
+Add the plugin to `babel.config.js` as for Vite apps. `@nullvoxpopuli/ember-vite` compiles a file with oxc unless the file needs babel. In `vite.config.mjs`, send the files that use the polyfill to babel:
 
 ```js
 ember({
   babel: {
     include: {
-      whenImporting: [
-        "@ember/service",
-        "@ember/application",
-        "@ember/owner",
-        "ember-qunit",
-        "@ember/test-helpers",
-      ],
+      whenImporting: ["@ember/service", "ember-rfc-502-explicit-services-polyfill"],
     },
   },
 });
 ```
 
-Oxc compiles any file that imports none of these, and does not rewrite its owner calls. There, use `register(owner, Key, Impl)` from the polyfill.
+`whenImporting` can only match imports. An `owner.register(Key, Impl)` call in a file that imports neither package is compiled by oxc, so it is not rewritten. In such a file, import `register` from the polyfill and call `register(owner, Key, Impl)`.
 
 ### Addons
 
@@ -112,6 +106,16 @@ For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v
 The first lookup of a key creates the instance. One owner has one instance per key. A class with a static `create` (an `EmberObject`, such as `Service`) is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
 
 A class key never falls back to the resolver. `lookup(owner, FeatureFlags)` and `owner.lookup('service:feature-flags')` give two different instances.
+
+### Where to put services
+
+Put class-keyed services next to the code that uses them, not in `app/services`.
+
+A class key is an import, so a service is part of the import graph. A module that injects the service imports it, and the browser evaluates the service's module only when that module is loaded. With route splitting, a service that only a lazy route uses stays out of the initial bundle.
+
+`app/services` defeats this in Vite apps. The resolver's modules come from `@embroider/virtual/compat-modules`, which imports every file in `app/services` at boot. A service there is evaluated at boot, even if nothing injects it until a lazy route loads. Classic apps ship all of `app/` in one bundle, so there the location changes less.
+
+Only a service that is looked up by a string name, such as `@service('session')`, has to be in `app/services`.
 
 ### Lazy access without a decorator
 

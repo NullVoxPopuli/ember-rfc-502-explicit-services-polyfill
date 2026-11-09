@@ -6,13 +6,7 @@ export default defineConfig({
     ember({
       babel: {
         include: {
-          whenImporting: [
-            "@ember/service",
-            "@ember/application",
-            "@ember/owner",
-            "ember-qunit",
-            "@ember/test-helpers",
-          ],
+          whenImporting: ["@ember/service", "ember-rfc-502-explicit-services-polyfill"],
         },
       },
     }),
