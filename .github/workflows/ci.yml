@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  try-scenarios:
+    name: ${{ matrix.app }} / ${{ matrix.scenario }}
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { app: broccoli-app, scenario: ember-lts-4.12 }
+          - { app: broccoli-app, scenario: ember-lts-5.12 }
+          - { app: broccoli-app, scenario: ember-lts-6.12 }
+          - { app: ember-cli-app, scenario: ember-lts-6.12 }
+          - { app: ember-cli-app, scenario: ember-latest }
+          - { app: ember-cli-app, scenario: ember-beta }
+          - { app: nvp-app, scenario: ember-latest }
+          - { app: nvp-app, scenario: ember-beta }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply scenario
+        working-directory: test-apps/${{ matrix.app }}
+        run: pnpm dlx @embroider/try apply ${{ matrix.scenario }}
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - name: Test
+        working-directory: test-apps/${{ matrix.app }}
+        run: pnpm test

@@ -1,0 +1,14 @@
+packages:
+  - ember-rfc-502-explicit-services-polyfill
+  - test-apps/*
+
+allowBuilds:
+  esbuild: false
+  core-js: false
+
+autoInstallPeers: false
+resolvePeersFromWorkspaceRoot: false
+
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
