@@ -35,7 +35,15 @@ import { service } from "ember-rfc-502-explicit-services-polyfill";
 
 `inject` moves too. `Service` and type-only imports stay on `@ember/service`.
 
-The plugin also adds `import 'ember-rfc-502-explicit-services-polyfill/install'` to modules that import from `@ember/application`, `@ember/owner`, `@ember/engine`, `ember-qunit` or `@ember/test-helpers`. That import lets `owner.lookup`, `owner.register` and `owner.unregister` accept classes.
+The plugin also rewrites owner method calls whose first argument is not a string, so that `owner.lookup`, `owner.register`, `owner.unregister` and `owner.hasRegistration` accept classes:
+
+```js
+this.owner.register(Greeter, MockGreeter);
+// becomes
+ownerRegister(this.owner, Greeter, MockGreeter);
+```
+
+`ownerRegister` comes from `ember-rfc-502-explicit-services-polyfill/owner`. It sends a class key to the polyfill's registry, and passes anything else to the owner's own method. Ember's prototypes are not changed. Calls with a string or template literal, such as `owner.lookup('service:session')`, are not rewritten.
 
 The plugin only changes files in packages that list the polyfill in `dependencies`, `devDependencies` or `peerDependencies`. Your addons are not changed unless they depend on the polyfill.
 
@@ -83,6 +91,8 @@ ember({
   },
 });
 ```
+
+Oxc compiles any file that imports none of these, and does not rewrite its owner calls. There, use `register(owner, Key, Impl)` from the polyfill.
 
 ### Addons
 
@@ -235,6 +245,7 @@ A key can be an abstract class. The `Owner` type is not changed, so in TypeScrip
 
 - Classic `.extend({ foo: service(Key) })` does not support class keys. The string forms still work there.
 - Standard (stage 3) decorators are not supported.
+- Owner calls are only rewritten in files the babel plugin compiles. Calls through a computed name, such as `owner[method](Key)`, or with a spread first argument are not rewritten.
 - The checks in `register` and the "no owner" message use `assert` from `@ember/debug`, which is removed from production builds.
 - Production builds minify class names, so error messages show the minified name.
 - Each engine instance is its own owner, so each engine gets its own instances.

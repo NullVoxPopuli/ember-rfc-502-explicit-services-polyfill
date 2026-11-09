@@ -31,7 +31,9 @@ function mapFor<V>(store: WeakMap<object, Map<Key, V>>, owner: object): Map<Key,
   return map;
 }
 
-function isOwner(value: object): value is Owner {
+export function isOwner(value: unknown): value is Owner {
+  if (!value || typeof value !== "object") return false;
+
   const candidate = value as Partial<Record<"lookup" | "register", unknown>>;
 
   return typeof candidate.lookup === "function" && typeof candidate.register === "function";

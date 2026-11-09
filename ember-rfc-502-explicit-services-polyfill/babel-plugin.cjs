@@ -4,17 +4,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const POLYFILL = "ember-rfc-502-explicit-services-polyfill";
-const INSTALL = `${POLYFILL}/install`;
+const OWNER_HELPERS = `${POLYFILL}/owner`;
 const SERVICE = "@ember/service";
 const POLYFILLED_EXPORTS = new Set(["service", "inject"]);
-const OWNER_SOURCES = new Set([
-  "@ember/application",
-  "@ember/application/instance",
-  "@ember/engine",
-  "@ember/engine/instance",
-  "@ember/owner",
-  "@ember/test-helpers",
-  "ember-qunit",
+const OWNER_METHODS = new Map([
+  ["lookup", "ownerLookup"],
+  ["register", "ownerRegister"],
+  ["unregister", "ownerUnregister"],
+  ["hasRegistration", "ownerHasRegistration"],
 ]);
 
 const PACKAGE_DIR = realpath(__dirname);
@@ -102,35 +99,130 @@ function explicitServicesPolyfill(babel) {
     name: POLYFILL,
     visitor: {
       Program(path, state) {
-        if (!shouldTransform(state.filename)) return;
+        state.skip = !shouldTransform(state.filename);
 
-        let usesPolyfill = false;
-        let touchesOwner = false;
+        if (state.skip) return;
+
+        state.program = path;
+        state.helpers = new Map();
 
         for (let statement of path.get("body")) {
           if (statement.isImportDeclaration()) {
-            let source = statement.node.source.value;
-
-            if (source === POLYFILL || source === INSTALL) usesPolyfill = true;
-            if (
-              statement.node.importKind !== "type" &&
-              (OWNER_SOURCES.has(source) || source === SERVICE)
-            ) {
-              touchesOwner = true;
-            }
-
-            if (rewriteImport(statement)) usesPolyfill = true;
+            rewriteImport(statement);
           } else if (statement.isExportNamedDeclaration()) {
-            if (rewriteExport(statement)) usesPolyfill = true;
+            rewriteExport(statement);
           }
         }
+      },
 
-        if (touchesOwner && !usesPolyfill) {
-          path.unshiftContainer("body", t.importDeclaration([], t.stringLiteral(INSTALL)));
-        }
+      CallExpression(path, state) {
+        if (state.skip) return;
+
+        let method = ownerMethod(path.node);
+
+        if (!method) return;
+
+        path.replaceWith(
+          t.callExpression(helperFor(state, method), [
+            path.node.callee.object,
+            ...path.node.arguments,
+          ]),
+        );
+      },
+
+      OptionalCallExpression(path, state) {
+        if (state.skip) return;
+        if (path.node.optional || !path.node.callee.optional) return;
+        if (continuesChain(path)) return;
+
+        let method = ownerMethod(path.node);
+
+        if (!method) return;
+
+        let receiver = path.scope.generateUidIdentifierBasedOnNode(path.node.callee.object);
+
+        path.scope.push({ id: receiver });
+        path.replaceWith(
+          t.conditionalExpression(
+            t.binaryExpression(
+              "==",
+              t.assignmentExpression("=", t.cloneNode(receiver), path.node.callee.object),
+              t.nullLiteral(),
+            ),
+            t.unaryExpression("void", t.numericLiteral(0)),
+            t.callExpression(helperFor(state, method), [
+              t.cloneNode(receiver),
+              ...path.node.arguments,
+            ]),
+          ),
+        );
       },
     },
   };
+
+  function ownerMethod(node) {
+    let callee = node.callee;
+
+    if (callee.type !== "MemberExpression" && callee.type !== "OptionalMemberExpression") {
+      return undefined;
+    }
+    if (callee.computed || callee.property.type !== "Identifier") return undefined;
+    if (callee.object.type === "Super") return undefined;
+    if (isOptionalChain(callee.object)) return undefined;
+
+    let method = OWNER_METHODS.get(callee.property.name);
+
+    if (!method) return undefined;
+
+    let [first] = node.arguments;
+
+    if (!first || first.type === "SpreadElement" || isName(first)) return undefined;
+
+    return method;
+  }
+
+  function isOptionalChain(node) {
+    return node.type === "OptionalMemberExpression" || node.type === "OptionalCallExpression";
+  }
+
+  function continuesChain(path) {
+    let parent = path.parentPath;
+
+    return (
+      (parent.isOptionalMemberExpression() && parent.node.object === path.node) ||
+      (parent.isOptionalCallExpression() && parent.node.callee === path.node)
+    );
+  }
+
+  function isName(node) {
+    if (node.type === "StringLiteral" || node.type === "TemplateLiteral") return true;
+
+    return (
+      node.type === "BinaryExpression" &&
+      node.operator === "+" &&
+      (isName(node.left) || isName(node.right))
+    );
+  }
+
+  function helperFor(state, method) {
+    let existing = state.helpers.get(method);
+
+    if (existing) return t.cloneNode(existing);
+
+    let local = state.program.scope.generateUidIdentifier(method);
+    let [inserted] = state.program.unshiftContainer(
+      "body",
+      t.importDeclaration(
+        [t.importSpecifier(local, t.identifier(method))],
+        t.stringLiteral(OWNER_HELPERS),
+      ),
+    );
+
+    state.program.scope.registerDeclaration(inserted);
+    state.helpers.set(method, local);
+
+    return t.cloneNode(local);
+  }
 
   function rewriteImport(path) {
     let { node } = path;

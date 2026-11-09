@@ -10,9 +10,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./install": {
-      "types": "./dist/install.d.ts",
-      "default": "./dist/install.js"
+    "./owner": {
+      "types": "./dist/owner.d.ts",
+      "default": "./dist/owner.js"
     },
     "./babel-plugin": "./babel-plugin.cjs",
     "./babel-plugin.cjs": "./babel-plugin.cjs",

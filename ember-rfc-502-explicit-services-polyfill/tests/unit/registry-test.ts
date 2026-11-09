@@ -80,17 +80,6 @@ module("Unit | registry", function (hooks) {
     assert.strictEqual(owned.counter, lookup(this.owner, Counter));
   });
 
-  test("owner methods accept class keys", function (assert) {
-    const owner = this.owner as unknown as {
-      lookup(key: unknown): unknown;
-      register(key: unknown, impl: unknown): void;
-    };
-
-    owner.register(Counter, Doubled);
-
-    assert.true(owner.lookup(Counter) instanceof Doubled);
-  });
-
   test("instances are destroyed with the owner", async function (assert) {
     const session = lookup(this.owner, Session);
 

@@ -53,16 +53,6 @@ import Service from '@ember/service';
   );
 });
 
-test("an @ember/service import with nothing to move still installs the owner patch", () => {
-  same(
-    trim(transform(`import Service from '@ember/service';`)),
-    trim(`
-import "ember-rfc-502-explicit-services-polyfill/install";
-import Service from '@ember/service';
-`),
-  );
-});
-
 test("leaves type-only imports alone", () => {
   let code = `import type { Registry } from '@ember/service';`;
 
@@ -84,16 +74,6 @@ import { type Registry } from '@ember/service';
   );
 });
 
-test("leaves namespace imports alone, apart from the owner patch", () => {
-  same(
-    trim(transform(`import * as s from '@ember/service';`)),
-    trim(`
-import "ember-rfc-502-explicit-services-polyfill/install";
-import * as s from '@ember/service';
-`),
-  );
-});
-
 test("moves re-exports", () => {
   same(
     trim(transform(`export { default, service } from '@ember/service';`)),
@@ -104,48 +84,8 @@ export { default } from '@ember/service';
   );
 });
 
-test("installs the owner patch in modules that reach the owner", () => {
-  for (let source of [
-    "@ember/application",
-    "@ember/owner",
-    "@ember/engine/instance",
-    "ember-qunit",
-    "@ember/test-helpers",
-  ]) {
-    same(
-      trim(transform(`import x from '${source}';`)),
-      trim(`
-import "ember-rfc-502-explicit-services-polyfill/install";
-import x from '${source}';
-`),
-      source,
-    );
-  }
-});
-
-test("does not install the owner patch twice", () => {
-  let code = trim(`
-import { service } from '@ember/service';
-import { setupTest } from 'ember-qunit';
-`);
-
-  same(
-    trim(transform(code)),
-    trim(`
-import { service } from 'ember-rfc-502-explicit-services-polyfill';
-import { setupTest } from 'ember-qunit';
-`),
-  );
-});
-
-test("does not touch modules that never reach the owner", () => {
-  let code = `import { tracked } from '@glimmer/tracking';`;
-
-  same(trim(transform(code)), code);
-});
-
 test("does not rewrite the polyfill's own modules", () => {
-  let code = `import { service } from '@ember/service';\nimport EngineInstance from '@ember/engine/instance';`;
+  let code = `import { service } from '@ember/service';\nowner.lookup(Key);`;
   let ownFile = join(import.meta.dirname, "..", "..", "dist", "service.js");
 
   same(trim(transform(code, ownFile)), trim(code));
@@ -193,7 +133,84 @@ test("rewrites files in a package that depends on the polyfill", () => {
 
 test("leaves packages that do not depend on the polyfill alone", () => {
   let file = fixture({ name: "unrelated", dependencies: { "ember-source": "*" } });
-  let code = `import { service } from '@ember/service';\nimport { setupTest } from 'ember-qunit';`;
+  let code = `import { service } from '@ember/service';\nowner.lookup(Key);`;
 
   same(transform(code, file), code);
+});
+
+test("keeps an @ember/service import with nothing to move", () => {
+  same(transform(`import Service from '@ember/service';`), `import Service from '@ember/service';`);
+});
+
+test("leaves namespace imports alone", () => {
+  same(transform(`import * as s from '@ember/service';`), `import * as s from '@ember/service';`);
+});
+
+test("rewrites owner methods called with something other than a name", () => {
+  same(
+    transform(`
+this.owner.register(Greeter, MockGreeter);
+appInstance.lookup(CookieStore);
+owner.unregister(Key);
+owner.hasRegistration(Key);
+`),
+    `
+import { _ownerHasRegistration } from "ember-rfc-502-explicit-services-polyfill/owner";
+import { _ownerUnregister } from "ember-rfc-502-explicit-services-polyfill/owner";
+import { _ownerLookup } from "ember-rfc-502-explicit-services-polyfill/owner";
+import { _ownerRegister } from "ember-rfc-502-explicit-services-polyfill/owner";
+_ownerRegister(this.owner, Greeter, MockGreeter);
+_ownerLookup(appInstance, CookieStore);
+_ownerUnregister(owner, Key);
+_ownerHasRegistration(owner, Key);
+`.replace(/\{ _(\w+) \}/g, "{ $1 as _$1 }"),
+  );
+});
+
+test("imports each helper once", () => {
+  let code = transform(`owner.lookup(A);\nowner.lookup(B);`);
+
+  assert.equal(code.match(/import/g).length, 1);
+  assert.match(code, /_ownerLookup\(owner, A\);\n_ownerLookup\(owner, B\);/);
+});
+
+test("leaves string names alone", () => {
+  let code = [
+    "owner.lookup('service:session');",
+    "owner.lookup(`service:${name}`);",
+    "owner.register('service:session', Session);",
+    "owner.lookup('service:' + name);",
+  ].join("\n");
+
+  same(transform(code), code);
+});
+
+test("rewrites identifiers, because they may hold a class", () => {
+  assert.match(transform(`owner.lookup(fullName);`), /_ownerLookup\(owner, fullName\)/);
+});
+
+test("passes the receiver expression as the owner", () => {
+  assert.match(
+    transform(`getOwner(this).lookup(Session);`),
+    /_ownerLookup\(getOwner\(this\), Session\)/,
+  );
+});
+
+test("keeps the short-circuit of an optional call", () => {
+  let code = transform(`owner?.lookup(Session);`);
+
+  assert.match(code, /\(_owner = owner\) == null \? void 0 : _ownerLookup\(_owner, Session\)/);
+});
+
+test("leaves calls it cannot rewrite safely alone", () => {
+  let code = [
+    "owner.lookup(...args);",
+    "owner['lookup'](Session);",
+    "owner.lookup();",
+    "a?.owner.lookup(Session);",
+    "owner?.lookup(Session).count;",
+    "class X extends Y { m() { super.lookup(Session); } }",
+  ].join("\n");
+
+  same(transform(code).replace(/\s+/g, " "), code.replace(/\s+/g, " "));
 });

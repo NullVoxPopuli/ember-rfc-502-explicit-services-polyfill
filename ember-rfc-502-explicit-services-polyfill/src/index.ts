@@ -1,5 +1,3 @@
-import "./install.ts";
-
 export { type Instance, type Key, type KeyOrThunk } from "./key.ts";
 export { type Context, hasBinding, isResolved, lookup, register, unregister } from "./registry.ts";
 export { type Decorator, inject, service } from "./service.ts";
