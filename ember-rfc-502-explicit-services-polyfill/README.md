@@ -102,7 +102,11 @@ const app = new EmberApp(defaults, {
             include: /ember-rfc-502-explicit-services-polyfill/,
             use: {
               loader: require.resolve("babel-loader"),
-              options: { babelrc: false, configFile: false, plugins: [ownerPolyfill] },
+              options: {
+                babelrc: false,
+                configFile: false,
+                plugins: [ownerPolyfill],
+              },
             },
           },
         ],
@@ -123,12 +127,16 @@ ember({
   babel: {
     include: {
       whenImporting: ["@ember/service", "ember-rfc-502-explicit-services-polyfill"],
+      whenMatching: [/\.(lookup|register|unregister|hasRegistration)\(/],
     },
   },
 });
 ```
 
-`whenImporting` can only match imports. An `owner.register(Key, Impl)` call in a file that imports neither package is compiled by oxc, so it is not rewritten. In such a file, import `register` from the polyfill and call `register(owner, Key, Impl)`.
+- `whenImporting` sends files that import `@ember/service` or the polyfill to babel.
+- `whenMatching` sends files that call an owner method, such as `owner.register(Key, Impl)`, to babel. These files do not need to import either package.
+
+`whenMatching` needs `@nullvoxpopuli/ember-vite` 1.5.0 or newer.
 
 ### Addons
 

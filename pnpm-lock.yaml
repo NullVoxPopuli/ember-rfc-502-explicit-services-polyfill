@@ -49,8 +49,8 @@ importers:
         specifier: 2.13.0
         version: 2.13.0(@glint/template@1.11.1)(@typescript/typescript6@6.0.2)(tsdown@0.23.7(@typescript/typescript6@6.0.2)(@volar/typescript@2.4.31(@typescript/typescript6@6.0.2))(publint@0.3.25))
       '@nullvoxpopuli/ember-vite':
-        specifier: 1.4.0
-        version: 1.4.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))
+        specifier: 1.5.0
+        version: 1.5.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))
       '@types/qunit':
         specifier: ^2.19.14
         version: 2.19.14
@@ -434,13 +434,13 @@ importers:
         version: 2.13.1(@glint/template@1.11.1)(webpack@5.112.2)
       ember-cli:
         specifier: ~4.12.3
-        version: 4.12.3(@types/node@26.6.6)(ejs@3.1.10)(handlebars@4.7.10)(underscore@1.13.8)
+        version: 4.12.3(@types/node@26.6.6)
       ember-cli-babel:
         specifier: ^8.2.0
         version: 8.3.2(@babel/core@7.29.13)
       ember-cli-dependency-checker:
         specifier: ^3.3.3
-        version: 3.3.3(ember-cli@4.12.3(@types/node@26.6.6)(ejs@3.1.10)(handlebars@4.7.10)(underscore@1.13.8))
+        version: 3.3.3(ember-cli@4.12.3(@types/node@26.6.6))
       ember-cli-htmlbars:
         specifier: ^6.3.0
         version: 6.3.0
@@ -551,8 +551,8 @@ importers:
         specifier: ^1.11.1
         version: 1.11.1
       '@nullvoxpopuli/ember-vite':
-        specifier: 1.4.0
-        version: 1.4.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))
+        specifier: 1.5.0
+        version: 1.5.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))
       '@rollup/plugin-babel':
         specifier: ^7.1.0
         version: 7.1.0(@babel/core@7.29.13)
@@ -1900,8 +1900,8 @@ packages:
       typescript:
         optional: true
 
-  '@nullvoxpopuli/ember-vite@1.4.0':
-    resolution: {integrity: sha512-KhHPbjXa8hN79Lmr4Fptg72VchNn6VkZcRHAFT9UOH8yvUs3PZp3sV+nv/+pNRcJlsHGMIk84eHVoJsfB32FSA==}
+  '@nullvoxpopuli/ember-vite@1.5.0':
+    resolution: {integrity: sha512-ZgWImFi978kCYL/26OYrI4ZgqC1GUuyWcLAt/BattUs8Doqnz1jLweTNF3IHPiaxk4eA/MkKBG6ElxFkyFCaYg==}
     engines: {node: '>= 24'}
 
   '@one-ini/wasm@0.2.1':
@@ -10464,7 +10464,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@nullvoxpopuli/ember-vite@1.4.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))':
+  '@nullvoxpopuli/ember-vite@1.5.0(@glint/template@1.11.1)(vite@8.3.7(@types/node@26.6.6)(terser@5.51.2)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.13
       '@embroider/core': 4.6.10(@glint/template@1.11.1)
@@ -12829,10 +12829,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ember-cli-dependency-checker@3.3.3(ember-cli@4.12.3(@types/node@26.6.6)(ejs@3.1.10)(handlebars@4.7.10)(underscore@1.13.8)):
+  ember-cli-dependency-checker@3.3.3(ember-cli@4.12.3(@types/node@26.6.6)):
     dependencies:
       chalk: 2.4.2
-      ember-cli: 4.12.3(@types/node@26.6.6)(ejs@3.1.10)(handlebars@4.7.10)(underscore@1.13.8)
+      ember-cli: 4.12.3(@types/node@26.6.6)
       find-yarn-workspace-root: 2.0.0
       is-git-url: 1.0.0
       resolve: 1.22.14
@@ -12999,7 +12999,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ember-cli@4.12.3(@types/node@26.6.6)(ejs@3.1.10)(handlebars@4.7.10)(underscore@1.13.8):
+  ember-cli@4.12.3(@types/node@26.6.6):
     dependencies:
       '@babel/core': 7.29.13
       '@babel/plugin-transform-modules-amd': 7.29.7(@babel/core@7.29.13)
