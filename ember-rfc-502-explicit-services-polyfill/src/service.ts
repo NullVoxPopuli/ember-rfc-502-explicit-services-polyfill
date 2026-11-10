@@ -6,6 +6,10 @@ import { type Context, lookup } from "./registry.ts";
 
 import type { Registry as ServiceRegistry } from "@ember/service";
 
+const emberInject = (emberService.service ?? emberService.inject) as (
+  ...args: unknown[]
+) => unknown;
+
 export type Decorator = (target: object, propertyKey: string | symbol, descriptor?: object) => void;
 
 function decoratorFor<K extends Key>(keyOrThunk: KeyOrThunk<K>): Decorator {
@@ -50,7 +54,7 @@ export function service<K extends Key>(context: Context, keyOrThunk: KeyOrThunk<
 
 export function service(...args: unknown[]): unknown {
   if (args.length === 0 || typeof args[0] === "string" || isLegacyDecoratorCall(args)) {
-    return (emberService.service as (...a: unknown[]) => unknown)(...args);
+    return emberInject(...args);
   }
 
   if (args.length === 1) {

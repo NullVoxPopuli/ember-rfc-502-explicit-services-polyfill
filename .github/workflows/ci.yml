@@ -48,6 +48,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { app: min-supported, scenario: ember-lts-3.28 }
+          - { app: min-supported, scenario: ember-lts-4.8 }
           - { app: broccoli-app, scenario: ember-lts-4.12 }
           - { app: broccoli-app, scenario: ember-lts-5.12 }
           - { app: broccoli-app, scenario: ember-lts-6.12 }
