@@ -8,6 +8,10 @@ const POLYFILL = "ember-rfc-502-explicit-services-polyfill";
 const OWNER_HELPERS = `${POLYFILL}/owner`;
 const SERVICE = "@ember/service";
 const POLYFILLED_EXPORTS = new Set(["service", "inject"]);
+const EMBER_OBJECT_HOOKS = new Map([
+  ["init", "Move the code in init() to a constructor that calls super(owner)."],
+  ["willDestroy", "Use registerDestructor() from @ember/destroyable instead of willDestroy()."],
+]);
 const OWNER_METHODS = new Map([
   ["lookup", "ownerLookup"],
   ["register", "ownerRegister"],
@@ -104,6 +108,7 @@ function explicitServicesPolyfill(babel) {
 
         let importUtil = new ImportUtil(babel, path);
 
+        swapServiceBase(path, importUtil);
         moveServiceImports(path, importUtil);
 
         for (let statement of path.get("body")) {
@@ -200,6 +205,110 @@ function explicitServicesPolyfill(babel) {
       node.operator === "+" &&
       (isName(node.left) || isName(node.right))
     );
+  }
+
+  function serviceImports(program) {
+    let base;
+    let injectors = [];
+
+    for (let statement of program.get("body")) {
+      if (!statement.isImportDeclaration()) continue;
+      if (statement.node.source.value !== SERVICE || statement.node.importKind === "type") {
+        continue;
+      }
+
+      for (let specifier of statement.get("specifiers")) {
+        if (specifier.node.importKind === "type") continue;
+
+        let binding = program.scope.getBinding(specifier.node.local.name);
+
+        if (!binding) continue;
+
+        if (specifier.isImportDefaultSpecifier()) {
+          base = binding;
+        } else if (
+          specifier.isImportSpecifier() &&
+          POLYFILLED_EXPORTS.has(exportedName(specifier.node.imported))
+        ) {
+          injectors.push(binding);
+        }
+      }
+    }
+
+    return { base, injectors };
+  }
+
+  function injectsByKey(injectors, within) {
+    return injectors.some((binding) =>
+      binding.referencePaths.some((reference) => {
+        let call = reference.parentPath;
+
+        if (!call.isCallExpression() || call.node.callee !== reference.node) return false;
+
+        let [first] = call.node.arguments;
+
+        if (!first || first.type === "SpreadElement" || isName(first)) return false;
+
+        return Boolean(reference.findParent((parent) => parent === within));
+      }),
+    );
+  }
+
+  function modernOnly(message, path) {
+    return path.buildCodeFrameError(
+      `To use the features of ${POLYFILL}, a service must use native classes and not the ` +
+        `features of EmberObject. ${message}`,
+    );
+  }
+
+  function assertNoEmberObjectHooks(classPath) {
+    for (let member of classPath.get("body.body")) {
+      if (member.node.static || member.node.computed) continue;
+
+      let key = member.node.key;
+      let name = key && (key.type === "StringLiteral" ? key.value : key.name);
+      let message = EMBER_OBJECT_HOOKS.get(name);
+
+      if (message) throw modernOnly(message, member);
+    }
+  }
+
+  function swapServiceBase(program, importUtil) {
+    let { base, injectors } = serviceImports(program);
+
+    if (!base) return;
+
+    let swaps = [];
+
+    for (let reference of base.referencePaths) {
+      let parent = reference.parentPath;
+
+      if (parent.isClass() && parent.node.superClass === reference.node) {
+        if (!injectsByKey(injectors, parent)) continue;
+
+        assertNoEmberObjectHooks(parent);
+        swaps.push(reference);
+      } else if (
+        parent.isMemberExpression() &&
+        parent.node.object === reference.node &&
+        !parent.node.computed &&
+        parent.node.property.name === "extend" &&
+        parent.parentPath.isCallExpression() &&
+        injectsByKey(injectors, parent.parentPath)
+      ) {
+        throw modernOnly("Use a class that extends Service instead of Service.extend().", parent);
+      }
+    }
+
+    if (swaps.length === 0) return;
+
+    let local = base.identifier.name;
+
+    if (swaps.length === base.referencePaths.length) importUtil.removeImport(SERVICE, "default");
+
+    for (let reference of swaps) {
+      importUtil.replaceWith(reference, (i) => i.import(POLYFILL, "Service", local));
+    }
   }
 
   function moveServiceImports(program, importUtil) {

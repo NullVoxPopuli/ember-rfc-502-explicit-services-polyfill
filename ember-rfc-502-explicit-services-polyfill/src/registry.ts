@@ -45,7 +45,8 @@ export function ownerOf(context: Context, forKey?: Key): Owner {
   assert(
     `Cannot resolve ${forKey ? nameOf(forKey) : "a service"} from ${nameOf(context.constructor)}: ` +
       `it has no owner. A plain class gets its owner after its constructor returns, so a field ` +
-      `initializer cannot inject. Inject from the owner passed to the constructor, or from a getter.`,
+      `initializer cannot inject. Extend Service from @ember/service, and call super(owner) in ` +
+      `a constructor. Or inject from the owner passed to the constructor, or from a getter.`,
     owner,
   );
 

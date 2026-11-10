@@ -153,7 +153,7 @@ For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v
 | `@service('name')`          | unchanged: looks up `service:name`                    |
 | `@service` and `@service()` | unchanged: looks up the name of the field             |
 
-The first lookup of a key creates the instance. One owner has one instance per key. A class with a static `create` (an `EmberObject`, such as `Service`) is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
+The first lookup of a key creates the instance. One owner has one instance per key. A class with a static `create`, such as a subclass of `Service`, is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
 
 A class key never falls back to the resolver. `lookup(owner, FeatureFlags)` and `owner.lookup('service:feature-flags')` give two different instances.
 
@@ -179,9 +179,32 @@ class Demo extends Component {
 }
 ```
 
+### Extending Service
+
+Extending `Service` is optional. Extend it when a field must inject:
+
+```js
+import Service, { service } from "@ember/service";
+
+export default class Audit extends Service {
+  logger = service(this, Logger);
+}
+```
+
+`Service` sets the owner before the fields of the subclass run. A subclass with a constructor must call `super(owner)` first.
+
+When a class that extends `Service` from `@ember/service` uses `@service(Key)` or `service(this, Key)`, the babel plugin makes it extend the polyfill's `Service`. This class is the `Service` that RFC 502 describes. It is not an `EmberObject`:
+
+- `init`, `willDestroy`, and `Service.extend()` with a class key are babel errors. Use a constructor that calls `super(owner)`, and `registerDestructor` from `@ember/destroyable`.
+- `this.set`, `this.get`, `isDestroyed`, computed properties, and mixins are not available. Use native getters, `@tracked`, and `isDestroyed()` from `@ember/destroyable`.
+
+A class that injects only by name, such as `@service('session')`, keeps `Service` from `@ember/service`.
+
+The polyfill's `Service` has a static `create`, so `owner.register('service:audit', Audit)` and `owner.lookup('service:audit')` also work.
+
 ### Plain classes
 
-The owner is set after the constructor returns. A field in a plain class cannot inject, because `this` has no owner yet. Use the owner that the constructor gets, or a getter:
+A class that does not extend `Service` gets its owner after its constructor returns. A field in a plain class cannot inject, because `this` has no owner yet. Use the owner that the constructor gets, or a getter:
 
 ```js
 export default class Audit {
@@ -197,7 +220,7 @@ export default class Audit {
 }
 ```
 
-Glimmer components and `EmberObject` subclasses have their owner before their fields run, so fields work there.
+Glimmer components, `EmberObject` subclasses, and subclasses of `Service` have their owner before their fields run, so fields work there.
 
 ### Module cycles
 
@@ -271,6 +294,8 @@ These work with an owner or with any object that has one:
 | `hasBinding(context, Key)`     | `true` if `register` was called for the key     |
 | `isResolved(context, Key)`     | `true` if the key has an instance on this owner |
 
+The polyfill also exports `Service`. The babel plugin uses it in place of `Service` from `@ember/service`, as described in [Extending Service](#extending-service).
+
 `owner.hasRegistration(Key)` throws. The RFC leaves it open, and for a class key the answer is always yes. Use `hasBinding` or `isResolved`.
 
 ## TypeScript
@@ -292,6 +317,8 @@ This adds the class-key overloads to `service` and `inject` from `@ember/service
 ```
 
 `service(this, Counter)` returns `Counter`, so fields and getters need no annotation.
+
+The type of `Service` from `@ember/service` is not changed. A class that the babel plugin makes extend the polyfill's `Service` still has the `EmberObject` methods in its type, but not at runtime.
 
 A key can be an abstract class. The `Owner` type is not changed, so in TypeScript use `register(owner, Key, Impl)` and `lookup(owner, Key)` from the polyfill.
 

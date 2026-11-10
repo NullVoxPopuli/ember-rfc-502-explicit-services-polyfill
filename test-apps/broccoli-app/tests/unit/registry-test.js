@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'broccoli-app/tests/helpers';
 import { getApplication, settled } from '@ember/test-helpers';
-import { destroy } from '@ember/destroyable';
+import { destroy, isDestroyed } from '@ember/destroyable';
 import { getOwner } from '@ember/owner';
 import {
   hasBinding,
@@ -168,7 +168,7 @@ module('Unit | registry', function (hooks) {
     await settled();
 
     assert.true(counter.destroyed);
-    assert.true(session.isDestroyed);
+    assert.true(isDestroyed(session));
   });
 
   test('looking up on a destroyed owner throws', async function (assert) {

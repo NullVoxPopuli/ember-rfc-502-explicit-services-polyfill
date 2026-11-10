@@ -62,13 +62,90 @@ test("moves inject, and keeps the local name it was imported as", () => {
   );
 });
 
-test("keeps the Service base class on @ember/service", () => {
+test("a Service subclass that calls service(this, Key) extends the polyfill's Service", () => {
   transformsTo(
     `import Service, { service } from '@ember/service';
      class A extends Service { counter = service(this, Counter); }`,
+    `import { Service, service } from '${POLYFILL}';
+     class A extends Service { counter = service(this, Counter); }`,
+  );
+});
+
+test("a Service subclass that injects a class key with a decorator extends the polyfill's Service", () => {
+  transformsTo(
+    `import Service, { service } from '@ember/service';
+     class A extends Service { @service(() => Counter) counter; }`,
+    `import { Service, service } from '${POLYFILL}';
+     class A extends Service { @service(() => Counter) counter; }`,
+  );
+});
+
+test("a Service subclass that only injects by name keeps Service from @ember/service", () => {
+  transformsTo(
+    `import Service, { service } from '@ember/service';
+     class A extends Service { @service session; @service('store') store; init() {} }`,
     `import Service from '@ember/service';
      import { service } from '${POLYFILL}';
-     class A extends Service { counter = service(this, Counter); }`,
+     class A extends Service { @service session; @service('store') store; init() {} }`,
+  );
+});
+
+test("keeps the @ember/service import for the classes that are not swapped", () => {
+  transformsTo(
+    `import Service, { service } from '@ember/service';
+     class A extends Service { counter = service(this, Counter); }
+     class B extends Service { @service session; }`,
+    `import Service from '@ember/service';
+     import { Service as Service0, service } from '${POLYFILL}';
+     class A extends Service0 { counter = service(this, Counter); }
+     class B extends Service { @service session; }`,
+  );
+});
+
+test("keeps the local name of the Service import", () => {
+  transformsTo(
+    `import Base, { service } from '@ember/service';
+     class A extends Base { counter = service(this, Counter); }`,
+    `import { Service as Base, service } from '${POLYFILL}';
+     class A extends Base { counter = service(this, Counter); }`,
+  );
+});
+
+for (let [hook, source] of [
+  ["init", "init() { super.init(...arguments); }"],
+  ["willDestroy", "willDestroy() {}"],
+  ["willDestroy as a field", "willDestroy = () => {};"],
+]) {
+  test(`reports ${hook} in a class that it makes extend the polyfill's Service`, () => {
+    assert.throws(
+      () =>
+        transform(
+          `import Service, { service } from '@ember/service';
+           class A extends Service { counter = service(this, Counter); ${source} }`,
+        ),
+      /To use the features of ember-rfc-502-explicit-services-polyfill, a service must use native classes/,
+    );
+  });
+}
+
+test("reports Service.extend() that injects a class key", () => {
+  assert.throws(
+    () =>
+      transform(
+        `import Service, { service } from '@ember/service';
+         export default Service.extend({ counter: service(Counter) });`,
+      ),
+    /Use a class that extends Service instead of Service.extend\(\)/,
+  );
+});
+
+test("leaves Service.extend() that injects by name alone", () => {
+  transformsTo(
+    `import Service, { service } from '@ember/service';
+     export default Service.extend({ session: service('session') });`,
+    `import Service from '@ember/service';
+     import { service } from '${POLYFILL}';
+     export default Service.extend({ session: service('session') });`,
   );
 });
 
