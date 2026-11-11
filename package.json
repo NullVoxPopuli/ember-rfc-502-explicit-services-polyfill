@@ -1,0 +1,12 @@
+{
+  "name": "ember-rfc-502-explicit-services-polyfill-monorepo",
+  "private": true,
+  "repository": "https://github.com/NullVoxPopuli/ember-rfc-502-explicit-services-polyfill",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm --filter ember-rfc-502-explicit-services-polyfill build",
+    "lint": "pnpm --filter ember-rfc-502-explicit-services-polyfill lint && pnpm build && pnpm --filter nvp-app lint:types",
+    "test": "pnpm build && pnpm --filter ember-rfc-502-explicit-services-polyfill test && pnpm --filter \"./test-apps/**\" --workspace-concurrency=1 test"
+  },
+  "packageManager": "pnpm@10.18.2"
+}

@@ -1,0 +1,108 @@
+{
+  "name": "ember-rfc-502-explicit-services-polyfill",
+  "version": "0.0.0",
+  "description": "Polyfill for RFC 502: explicit service injection with class keys",
+  "license": "MIT",
+  "author": "NullVoxPopuli",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./owner": {
+      "types": "./dist/owner.d.ts",
+      "default": "./dist/owner.js"
+    },
+    "./babel-plugin": "./babel-plugin.cjs",
+    "./babel-plugin.cjs": "./babel-plugin.cjs",
+    "./addon-main.js": "./addon-main.cjs"
+  },
+  "files": [
+    "addon-main.cjs",
+    "babel-plugin.cjs",
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown",
+    "start": "tsdown --watch",
+    "lint:eslint": "eslint . --cache",
+    "lint:eslint:fix": "eslint . --fix",
+    "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
+    "lint:fix": "concurrently \"pnpm:lint:*:fix\" --names \"fix:\" --prefixColors auto && pnpm format",
+    "format": "prettier --write .",
+    "lint:prettier": "prettier --check .",
+    "build:test": "EMBER_ENV=test NODE_ENV=development vite build --mode development",
+    "test:ci": "testem ci --file config/test/testem.cjs --port 0",
+    "test": "pnpm test:babel && pnpm build:test && pnpm test:ci",
+    "lint:types": "tsc --noEmit --runExternalCode",
+    "test:babel": "node --test \"tests/babel/*.test.mjs\""
+  },
+  "dependencies": {
+    "@embroider/addon-shim": "^1.10.0",
+    "babel-import-util": "^3.0.1"
+  },
+  "peerDependencies": {
+    "ember-source": ">= 3.28.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.13",
+    "@babel/plugin-transform-typescript": "^7.29.9",
+    "@ember/library-tsconfig": "^2.0.0",
+    "@ember/test-helpers": "^5.8.0",
+    "@ember/test-waiters": "^4.1.2",
+    "@embroider/macros": "^1.21.4",
+    "@glimmer/component": "^2.2.1",
+    "@glint/ember-tsc": "^1.14.3",
+    "@glint/template": "^1.11.1",
+    "@nullvoxpopuli/ember-rolldown": "2.13.0",
+    "@nullvoxpopuli/ember-vite": "1.5.0",
+    "@types/qunit": "^2.19.14",
+    "@typescript/native": "npm:typescript@^7.1.0-dev.20261109.1",
+    "babel-plugin-ember-template-compilation": "^4.0.1",
+    "concurrently": "^9.2.5",
+    "decorator-transforms": "^2.4.0",
+    "ember-content-mapper": "^0.3.2",
+    "ember-eslint": "^1.0.0",
+    "ember-qunit": "^9.2.0",
+    "ember-source": "~7.4.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-ember-template-tag": "^2.1.8",
+    "publint": "^0.3.25",
+    "qunit": "^2.26.0",
+    "qunit-dom": "3.5.0",
+    "qunit-theme-ember": "^1.0.0",
+    "testem": "3.17.0",
+    "tsdown": "^0.23.7",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.7"
+  },
+  "engines": {
+    "node": ">= 24"
+  },
+  "ember": {
+    "edition": "octane"
+  },
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "keywords": [
+    "ember-addon",
+    "ember-polyfill",
+    "babel-plugin",
+    "service",
+    "dependency-injection"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NullVoxPopuli/ember-rfc-502-explicit-services-polyfill.git"
+  },
+  "ember-addon": {
+    "version": 2,
+    "type": "addon",
+    "main": "addon-main.cjs"
+  }
+}

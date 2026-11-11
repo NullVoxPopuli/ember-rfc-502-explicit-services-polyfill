@@ -1,0 +1,21 @@
+{
+  "extends": "@ember/app-tsconfig",
+  "exclude": ["dist", "node_modules"],
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": [
+      "ember-source/types",
+      "@embroider/core/virtual",
+      "vite/client",
+      "@glint/ember-tsc/types",
+      "ember-rfc-502-explicit-services-polyfill",
+    ],
+  },
+  "contentMappers": [
+    {
+      "package": "ember-content-mapper",
+      "extensions": [".gts", ".gjs"],
+    },
+  ],
+}
