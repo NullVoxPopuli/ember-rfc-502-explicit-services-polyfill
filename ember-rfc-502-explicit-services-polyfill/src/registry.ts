@@ -8,8 +8,32 @@ import type Owner from "@ember/owner";
 
 export type Context = Owner | object;
 
+/**
+ * The registry for class keys, per owner.
+ * Each outer map is a `WeakMap` keyed on the owner, so an owner's state
+ * does not leak into other owners (another test, another engine),
+ * and is garbage-collected with the owner.
+ */
 interface State {
+  /**
+   * The singleton that the first `lookup` of a key built on an owner.
+   *
+   * `register` asserts if a key is already here, because a new binding would have no effect.
+   * `isResolved` reads this map.
+   */
   instances: WeakMap<object, Map<Key, object>>;
+
+  /**
+   * The class to build for a key on an owner. Only `register(owner, Key, Impl)` writes to it.
+   *
+   * `lookup` reads it only when the key has no instance yet: `bindings.get(owner)?.get(key) ?? key`.
+   * A key with no binding is its own implementation, so a plain class needs no registration.
+   * `unregister` deletes the binding and the instance. `hasBinding` reads this map.
+   *
+   * Bindings and instances are kept apart because a binding is made before the instance exists.
+   * After `register(owner, Plain, Plain)`, `hasBinding` is `true`,
+   * but `isResolved` is `false` until the first lookup.
+   */
   bindings: WeakMap<object, Map<Key, Key>>;
 }
 
