@@ -33,7 +33,6 @@ to:
 import { service } from "ember-rfc-502-explicit-services-polyfill";
 ```
 
-`inject` moves too. `Service` and type-only imports stay on `@ember/service`.
 
 The plugin also rewrites owner method calls whose first argument is not a string, so that `owner.lookup`, `owner.register`, `owner.unregister` and `owner.hasRegistration` accept classes:
 
