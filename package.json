@@ -8,5 +8,8 @@
     "lint": "pnpm --filter ember-rfc-502-explicit-services-polyfill lint && pnpm build && pnpm --filter nvp-app lint:types",
     "test": "pnpm build && pnpm --filter ember-rfc-502-explicit-services-polyfill test && pnpm --filter \"./test-apps/**\" --workspace-concurrency=1 test"
   },
+  "devDependencies": {
+    "release-plan": "^0.18.0"
+  },
   "packageManager": "pnpm@10.18.2"
 }
