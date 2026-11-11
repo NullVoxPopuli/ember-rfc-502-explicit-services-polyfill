@@ -198,6 +198,22 @@ When a class that extends `Service` from `@ember/service` uses `@service(Key)` o
 - `init`, `willDestroy`, and `Service.extend()` with a class key are babel errors. Use a constructor that calls `super(owner)`, and `registerDestructor` from `@ember/destroyable`.
 - `this.set`, `this.get`, `isDestroyed`, computed properties, and mixins are not available. Use native getters, `@tracked`, and `isDestroyed()` from `@ember/destroyable`.
 
+The polyfill's `Service` has no `willDestroy`, because `registerDestructor` already does the same thing. In `EmberObject`, `willDestroy` is a destructor too: the constructor calls `registerDestructor(this, () => this.willDestroy())`. When the instance is destroyed, both are scheduled in the same queue and run at the same time, so `willDestroy` would only be a second name for `registerDestructor`:
+
+```js
+import Service from "@ember/service";
+import { registerDestructor } from "@ember/destroyable";
+
+export default class Socket extends Service {
+  #connection = open();
+
+  constructor(owner) {
+    super(owner);
+    registerDestructor(this, () => this.#connection.close());
+  }
+}
+```
+
 A class that injects only by name, such as `@service('session')`, keeps `Service` from `@ember/service`.
 
 The polyfill's `Service` has a static `create`, so `owner.register('service:audit', Audit)` and `owner.lookup('service:audit')` also work.
