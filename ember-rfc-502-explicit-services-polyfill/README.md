@@ -21,32 +21,10 @@ export class Demo extends Component {
 pnpm add ember-rfc-502-explicit-services-polyfill
 ```
 
-Then add the babel plugin. The plugin changes:
+Then add the babel plugin. Open the section for your kind of app.
 
-```js
-import { service } from "@ember/service";
-```
-
-to:
-
-```js
-import { service } from "ember-rfc-502-explicit-services-polyfill";
-```
-
-
-The plugin also rewrites owner method calls whose first argument is not a string, so that `owner.lookup`, `owner.register`, `owner.unregister` and `owner.hasRegistration` accept classes:
-
-```js
-this.owner.register(Greeter, MockGreeter);
-// becomes
-ownerRegister(this.owner, Greeter, MockGreeter);
-```
-
-`ownerRegister` comes from `ember-rfc-502-explicit-services-polyfill/owner`. It sends a class key to the polyfill's registry, and passes anything else to the owner's own method. Ember's prototypes are not changed. Calls with a string or template literal, such as `owner.lookup('service:session')`, are not rewritten.
-
-The plugin only changes files in packages that list the polyfill in `dependencies`, `devDependencies` or `peerDependencies`. Your addons are not changed unless they depend on the polyfill.
-
-### Vite apps (ember-cli 6.8 and newer)
+<details>
+<summary>Vite apps (ember-cli 6.8 and newer)</summary>
 
 In `babel.config.mjs`, add the plugin to the start of `plugins`:
 
@@ -59,7 +37,10 @@ export default {
 };
 ```
 
-### Classic (broccoli) apps
+</details>
+
+<details>
+<summary>Classic (broccoli) apps</summary>
 
 In `ember-cli-build.js`:
 
@@ -117,7 +98,10 @@ const app = new EmberApp(defaults, {
 
 Without the webpack rule, the app fails at boot with "Could not find module `@ember/owner`".
 
-### ember.nvp apps
+</details>
+
+<details>
+<summary>ember.nvp apps</summary>
 
 Add the plugin to `babel.config.js` as for Vite apps. `@nullvoxpopuli/ember-vite` compiles a file with oxc unless the file needs babel. In `vite.config.mjs`, send the files that use the polyfill to babel:
 
@@ -137,9 +121,14 @@ ember({
 
 `whenMatching` needs `@nullvoxpopuli/ember-vite` 1.5.0 or newer.
 
-### Addons
+</details>
+
+<details>
+<summary>Addons</summary>
 
 For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v2 addon, add it to `babel.publish.config.cjs`. In both cases, put the polyfill in `dependencies` and `ember-source` in `peerDependencies`.
+
+</details>
 
 ## Usage
 
@@ -154,7 +143,7 @@ For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v
 
 Services are created lazily, as Ember's services are today. Nothing is created at boot or by `register`: the instance is created by the first lookup of its key, which for `@service(Key)` is the first time the field is read.
 
-One owner has one instance per key. A class with a static `create`, such as a subclass of `Service`, is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
+One owner has one instance per key. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
 
 A class key never falls back to the resolver. `lookup(owner, FeatureFlags)` and `owner.lookup('service:feature-flags')` give two different instances.
 
@@ -194,12 +183,12 @@ export class Audit extends Service {
 
 `Service` sets the owner before the fields of the subclass run. A subclass with a constructor must call `super(owner)` first.
 
-When a class that extends `Service` from `@ember/service` uses `@service(Key)` or `service(this, Key)`, the babel plugin makes it extend the polyfill's `Service`. This class is the `Service` that RFC 502 describes. It is not an `EmberObject`:
+A class that extends `Service` and injects by class key is not an `EmberObject` (see [How it works](#how-it-works)), so:
 
 - `init`, `willDestroy`, and `Service.extend()` with a class key are babel errors. Use a constructor that calls `super(owner)`, and `registerDestructor` from `@ember/destroyable`.
 - `this.set`, `this.get`, `isDestroyed`, computed properties, and mixins are not available. Use native getters, `@tracked`, and `isDestroyed()` from `@ember/destroyable`.
 
-The polyfill's `Service` has no `willDestroy`, because `registerDestructor` already does the same thing. In `EmberObject`, `willDestroy` is a destructor too: the constructor calls `registerDestructor(this, () => this.willDestroy())`. When the instance is destroyed, both are scheduled in the same queue and run at the same time, so `willDestroy` would only be a second name for `registerDestructor`:
+Use `registerDestructor` in place of `willDestroy`:
 
 ```js
 import Service from "@ember/service";
@@ -215,9 +204,7 @@ export class Socket extends Service {
 }
 ```
 
-A class that injects only by name, such as `@service('session')`, keeps `Service` from `@ember/service`.
-
-The polyfill's `Service` has a static `create`, so `owner.register('service:audit', Audit)` and `owner.lookup('service:audit')` also work.
+A subclass of `Service` can also be registered by name: `owner.register('service:audit', Audit)` and `owner.lookup('service:audit')` work.
 
 ### Plain classes
 
@@ -311,7 +298,7 @@ These work with an owner or with any object that has one:
 | `hasBinding(context, Key)`     | `true` if `register` was called for the key     |
 | `isResolved(context, Key)`     | `true` if the key has an instance on this owner |
 
-The polyfill also exports `Service`. The babel plugin uses it in place of `Service` from `@ember/service`, as described in [Extending Service](#extending-service).
+The polyfill also exports `Service`. The babel plugin uses it in place of `Service` from `@ember/service`, as described in [How it works](#how-it-works).
 
 `owner.hasRegistration(Key)` throws. The RFC leaves it open, and for a class key the answer is always yes. Use `hasBinding` or `isResolved`.
 
@@ -339,6 +326,53 @@ The type of `Service` from `@ember/service` is not changed. A class that the bab
 
 A key can be an abstract class. The `Owner` type is not changed, so in TypeScript use `register(owner, Key, Impl)` and `lookup(owner, Key)` from the polyfill.
 
+## How it works
+
+<details>
+<summary>The babel plugin, how instances are made, and the <code>Service</code> base class</summary>
+
+### The babel plugin
+
+The babel plugin changes:
+
+```js
+import { service } from "@ember/service";
+```
+
+to:
+
+```js
+import { service } from "ember-rfc-502-explicit-services-polyfill";
+```
+
+`inject` moves too. `Service` and type-only imports stay on `@ember/service`.
+
+The plugin also rewrites owner method calls whose first argument is not a string, so that `owner.lookup`, `owner.register`, `owner.unregister` and `owner.hasRegistration` accept classes:
+
+```js
+this.owner.register(Greeter, MockGreeter);
+// becomes
+ownerRegister(this.owner, Greeter, MockGreeter);
+```
+
+`ownerRegister` comes from `ember-rfc-502-explicit-services-polyfill/owner`. It sends a class key to the polyfill's registry, and passes anything else to the owner's own method. Ember's prototypes are not changed. Calls with a string or template literal, such as `owner.lookup('service:session')`, are not rewritten.
+
+The plugin only changes files in packages that list the polyfill in `dependencies`, `devDependencies` or `peerDependencies`. Your addons are not changed unless they depend on the polyfill.
+
+### Instances
+
+A class with a static `create`, such as a subclass of `Service`, is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`.
+
+### The `Service` base class
+
+When a class that extends `Service` from `@ember/service` uses `@service(Key)` or `service(this, Key)`, the babel plugin makes it extend the polyfill's `Service`. This class is the `Service` that RFC 502 describes. It is not an `EmberObject`. A class that injects only by name, such as `@service('session')`, keeps `Service` from `@ember/service`.
+
+The polyfill's `Service` has no `willDestroy`, because `registerDestructor` already does the same thing. In `EmberObject`, `willDestroy` is a destructor too: the constructor calls `registerDestructor(this, () => this.willDestroy())`. When the instance is destroyed, both are scheduled in the same queue and run at the same time, so `willDestroy` would only be a second name for `registerDestructor`.
+
+The polyfill's `Service` has a static `create`, because Ember's container calls `create` for a string lookup such as `owner.lookup('service:audit')`.
+
+</details>
+
 ## Known limitations
 
 - Classic `.extend({ foo: service(Key) })` does not support class keys. The string forms still work there.
@@ -352,7 +386,7 @@ A key can be an abstract class. The `Owner` type is not changed, so in TypeScrip
 
 ## Compatibility
 
-- ember-source 3.28 or newer. Below 4.12, see [ember-source older than 4.12](#ember-source-older-than-412).
+- ember-source 3.28 or newer. Below 4.12, see the classic apps section under [Install](#install).
 - Vite apps, classic broccoli apps, ember.nvp apps, v1 addons and v2 addons
 
 The test apps in `test-apps/` run the same suite in four apps:
