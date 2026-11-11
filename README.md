@@ -103,7 +103,18 @@ Without the webpack rule, the app fails at boot with "Could not find module `@em
 <details>
 <summary>ember.nvp apps</summary>
 
-Add the plugin to `babel.config.js` as for Vite apps. `@nullvoxpopuli/ember-vite` compiles a file with oxc unless the file needs babel. In `vite.config.mjs`, send the files that use the polyfill to babel:
+In `babel.config.js`, add the plugin to the start of `plugins`:
+
+```js
+export default {
+  plugins: [
+    "ember-rfc-502-explicit-services-polyfill/babel-plugin",
+    // ...the rest of your plugins
+  ],
+};
+```
+
+`@nullvoxpopuli/ember-vite` compiles a file with oxc unless the file needs babel. In `vite.config.mjs`, send the files that use the polyfill to babel:
 
 ```js
 ember({
@@ -126,7 +137,31 @@ ember({
 <details>
 <summary>Addons</summary>
 
-For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v2 addon, add it to `babel.publish.config.cjs`. In both cases, put the polyfill in `dependencies` and `ember-source` in `peerDependencies`.
+Put the polyfill in `dependencies` and `ember-source` in `peerDependencies`.
+
+For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`:
+
+```js
+module.exports = {
+  name: require("./package").name,
+  options: {
+    babel: {
+      plugins: [require.resolve("ember-rfc-502-explicit-services-polyfill/babel-plugin")],
+    },
+  },
+};
+```
+
+For a v2 addon, add the plugin to the start of `plugins` in `babel.publish.config.cjs`:
+
+```js
+module.exports = {
+  plugins: [
+    "ember-rfc-502-explicit-services-polyfill/babel-plugin",
+    // ...the rest of your plugins
+  ],
+};
+```
 
 </details>
 
