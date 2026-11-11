@@ -153,7 +153,9 @@ For a v1 addon, add the plugin to `options.babel.plugins` in `index.js`. For a v
 | `@service('name')`          | unchanged: looks up `service:name`                    |
 | `@service` and `@service()` | unchanged: looks up the name of the field             |
 
-The first lookup of a key creates the instance. One owner has one instance per key. A class with a static `create`, such as a subclass of `Service`, is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
+Services are created lazily, as Ember's services are today. Nothing is created at boot or by `register`. The first lookup of a key creates the instance. With `@service(Key)`, that is the first time the field is read.
+
+One owner has one instance per key. A class with a static `create`, such as a subclass of `Service`, is made with `create`. Any other class is made with `new Key(owner)`, and then gets `setOwner`. Each instance is destroyed with its owner, so `registerDestructor` works in a plain class.
 
 A class key never falls back to the resolver. `lookup(owner, FeatureFlags)` and `owner.lookup('service:feature-flags')` give two different instances.
 
