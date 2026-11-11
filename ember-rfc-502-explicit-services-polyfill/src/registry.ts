@@ -86,8 +86,15 @@ function instantiate(impl: Key, owner: Owner): object {
    * It is an `EmberObject`, and can still be looked up by class key: `lookup(owner, FeatureFlags)`.
    * `new` skips `init`, so `create` is required.
    *
-   * The polyfill's `Service` also has a static `create`, but `new` would work for it.
-   * Its `create` is for string lookups, where Ember's container calls `create`.
+   * The polyfill's `Service` also has a static `create`, so this branch makes it too.
+   * Here, `new` would work as well, because its constructor takes the owner.
+   *
+   * The polyfill's `Service` needs `create` for a different path, which does not go through this registry.
+   * After `owner.register('service:audit', Audit)`, `owner.lookup('service:audit')` makes the instance in Ember's container.
+   * The container never uses `new`.
+   * It asserts that the class has a static `create`,
+   * puts the owner on a props object with `setOwner(props, owner)`, and calls `Audit.create(props)`.
+   * The polyfill's `create` reads the owner back with `getOwner(props)`, and calls `new this(owner)`.
    */
   if (typeof factory.create === "function") {
     const props = {};
