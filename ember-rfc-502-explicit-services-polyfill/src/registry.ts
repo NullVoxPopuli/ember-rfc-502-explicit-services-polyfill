@@ -80,6 +80,15 @@ export function ownerOf(context: Context, forKey?: Key): Owner {
 function instantiate(impl: Key, owner: Owner): object {
   const factory = impl as unknown as { create?: (props: object) => object };
 
+  /**
+   * The babel plugin swaps the base class only for classes that inject by class key.
+   * A class that extends `Service` from `@ember/service` and injects only by name keeps Ember's `Service`.
+   * It is an `EmberObject`, and can still be looked up by class key: `lookup(owner, FeatureFlags)`.
+   * `new` skips `init`, so `create` is required.
+   *
+   * The polyfill's `Service` also has a static `create`, but `new` would work for it.
+   * Its `create` is for string lookups, where Ember's container calls `create`.
+   */
   if (typeof factory.create === "function") {
     const props = {};
 
