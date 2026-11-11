@@ -152,7 +152,9 @@ module.exports = {
 };
 ```
 
-For a v2 addon, add the plugin to the start of `plugins` in `babel.publish.config.cjs`:
+For a v2 addon, this step is optional. Do it if you do not want to make your consumers set up the polyfill's babel plugin. The plugin then runs when you publish, so the published code already imports from the polyfill.
+
+To do it, add the plugin to the start of `plugins` in `babel.publish.config.cjs`:
 
 ```js
 module.exports = {
