@@ -6,9 +6,9 @@ Use classes as service keys, as proposed in [RFC 502: Explicit Service Injection
 import Component from "@glimmer/component";
 import { service } from "@ember/service";
 
-import Notifications from "my-app/notifications/service";
+import { Notifications } from "my-app/notifications/service";
 
-export default class Demo extends Component {
+export class Demo extends Component {
   @service(Notifications) notifications;
 }
 ```
@@ -186,7 +186,7 @@ Extending `Service` is optional. Extend it when a field must inject:
 ```js
 import Service, { service } from "@ember/service";
 
-export default class Audit extends Service {
+export class Audit extends Service {
   logger = service(this, Logger);
 }
 ```
@@ -204,7 +204,7 @@ The polyfill's `Service` has no `willDestroy`, because `registerDestructor` alre
 import Service from "@ember/service";
 import { registerDestructor } from "@ember/destroyable";
 
-export default class Socket extends Service {
+export class Socket extends Service {
   #connection = open();
 
   constructor(owner) {
@@ -223,7 +223,7 @@ The polyfill's `Service` has a static `create`, so `owner.register('service:audi
 A class that does not extend `Service` gets its owner after its constructor returns. A field in a plain class cannot inject, because `this` has no owner yet. Use the owner that the constructor gets, or a getter:
 
 ```js
-export default class Audit {
+export class Audit {
   #logger;
 
   constructor(owner) {
@@ -243,11 +243,11 @@ Glimmer components, `EmberObject` subclasses, and subclasses of `Service` have t
 If two services import each other, use the thunk form on both sides:
 
 ```js
-export default class Editor {
+export class Editor {
   @service(() => History) history;
 }
 
-export default class History {
+export class History {
   @service(() => Editor) editor;
 }
 ```
