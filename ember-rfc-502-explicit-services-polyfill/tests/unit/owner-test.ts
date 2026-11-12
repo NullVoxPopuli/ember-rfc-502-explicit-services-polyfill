@@ -49,4 +49,19 @@ module("Unit | owner helpers", function (hooks) {
 
     assert.strictEqual(ownerLookup(map, Counter), "found true");
   });
+
+  test("a receiver that is not an owner gets the arguments it was called with", function (assert) {
+    const plugins = {
+      received: [] as unknown[][],
+      register(...items: unknown[]) {
+        this.received.push(items);
+      },
+    };
+    const ternary = { name: "ternary" };
+
+    ownerRegister(plugins, ternary);
+    ownerRegister(plugins, Counter);
+
+    assert.deepEqual(plugins.received, [[ternary], [Counter]]);
+  });
 });

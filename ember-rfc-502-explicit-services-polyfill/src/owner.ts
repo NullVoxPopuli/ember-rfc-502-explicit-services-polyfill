@@ -54,19 +54,18 @@ export function ownerLookup(owner: unknown, key: unknown, ...rest: unknown[]): u
   return (owner as Receiver)["lookup"]!(key, ...rest);
 }
 
-export function ownerRegister(
-  owner: unknown,
-  key: unknown,
-  implementation?: unknown,
-  ...rest: unknown[]
-): unknown {
+export function ownerRegister(owner: unknown, ...args: unknown[]): unknown {
+  const [key, implementation] = args;
+
   if (handlesKey(owner, key)) {
     register(owner, key as never, (implementation ?? key) as never);
 
     return undefined;
   }
 
-  return (owner as Receiver)["register"]!(key, implementation, ...rest);
+  // Forward the arguments as given: a rest-parameter `register`, such as jsep's,
+  // treats an added `undefined` as one more item.
+  return (owner as Receiver)["register"]!(...args);
 }
 
 export function ownerUnregister(owner: unknown, key: unknown, ...rest: unknown[]): unknown {
