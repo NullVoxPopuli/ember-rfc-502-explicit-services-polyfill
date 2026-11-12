@@ -63,12 +63,37 @@ function dependsOnPolyfill(pkg) {
   );
 }
 
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+
+/**
+ * The package that holds a file installed under node_modules.
+ *
+ * Walking up from such a file can leave its package.
+ * Vite's pre-bundled deps live in `node_modules/.vite/deps`, whose package.json has no name,
+ * so the walk would reach the app's package.json, and rewrite a dependency's own `.register(` calls.
+ * The package is the entry right after the last `node_modules`, such as `foo` or `@scope/foo`.
+ * An entry without a package.json, such as `.vite`, holds no package.
+ */
+function installedPackage(file) {
+  let start = file.lastIndexOf(NODE_MODULES) + NODE_MODULES.length;
+  let [first, second] = file.slice(start).split(path.sep);
+  let entry = first.startsWith("@") ? path.join(first, second) : first;
+
+  return readPackage(path.join(file.slice(0, start), entry));
+}
+
 function shouldTransform(filename) {
   if (!filename) return true;
 
   let file = realpath(filename);
 
   if (file.startsWith(PACKAGE_DIR + path.sep)) return false;
+
+  if (file.includes(NODE_MODULES)) {
+    let installed = installedPackage(file);
+
+    return Boolean(installed) && installed.name !== POLYFILL && dependsOnPolyfill(installed);
+  }
 
   let pkg = nearestPackage(path.dirname(file));
 

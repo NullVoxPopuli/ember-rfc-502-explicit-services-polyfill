@@ -300,6 +300,53 @@ test("leaves packages that do not depend on the polyfill alone", () => {
   );
 });
 
+function installed(...segments) {
+  let root = mkdtempSync(join(tmpdir(), "rfc-502-babel-"));
+
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({ name: "app", devDependencies: { [POLYFILL]: "*" } }),
+  );
+
+  let dir = join(root, "node_modules", ...segments);
+
+  mkdirSync(dir, { recursive: true });
+
+  return { root, dir };
+}
+
+test("leaves Vite's pre-bundled deps alone, even in an app that depends on the polyfill", () => {
+  let { dir } = installed(".vite", "deps");
+
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));
+
+  unchanged(`jsep.plugins.register(plugin);`, join(dir, "vanilla-jsoneditor.js"));
+});
+
+test("leaves an installed package alone when it does not depend on the polyfill", () => {
+  let { dir } = installed("@scope", "dep");
+
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "@scope/dep" }));
+  mkdirSync(join(dir, "dist"));
+
+  unchanged(`registry.register(Plugin);`, join(dir, "dist", "index.js"));
+});
+
+test("rewrites an installed package that depends on the polyfill", () => {
+  let { dir } = installed("addon");
+
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ name: "addon", dependencies: { [POLYFILL]: "*" } }),
+  );
+
+  transformsTo(
+    `owner.register(A, B);`,
+    `import { ownerRegister } from "${POLYFILL}/owner"; ownerRegister(owner, A, B);`,
+    join(dir, "index.js"),
+  );
+});
+
 test("exposes baseDir for ember-cli-babel caching", () => {
   assert.equal(typeof plugin.baseDir(), "string");
 });
