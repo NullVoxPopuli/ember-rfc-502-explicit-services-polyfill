@@ -1,6 +1,6 @@
 {
   "name": "ember-rfc-502-explicit-services-polyfill",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Polyfill for RFC 502: explicit service injection with class keys",
   "license": "MIT",
   "author": "NullVoxPopuli",

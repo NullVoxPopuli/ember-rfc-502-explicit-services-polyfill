@@ -1,0 +1,18 @@
+{
+  "solution": {
+    "ember-rfc-502-explicit-services-polyfill": {
+      "impact": "patch",
+      "oldVersion": "0.0.0",
+      "newVersion": "0.0.1",
+      "tagName": "latest",
+      "constraints": [
+        {
+          "impact": "patch",
+          "reason": "Appears in changelog section :bug: Bug Fix"
+        }
+      ],
+      "pkgJSONPath": "./ember-rfc-502-explicit-services-polyfill/package.json"
+    }
+  },
+  "description": "## Release (2026-11-12)\n\n* ember-rfc-502-explicit-services-polyfill 0.0.1 (patch)\n\n#### :bug: Bug Fix\n* `ember-rfc-502-explicit-services-polyfill`\n  * [#6](https://github.com/NullVoxPopuli/ember-rfc-502-explicit-services-polyfill/pull/6) Only rewrite owner calls on expressions that look like an owner ([@NullVoxPopuli](https://github.com/NullVoxPopuli))\n* Other\n  * [#2](https://github.com/NullVoxPopuli/ember-rfc-502-explicit-services-polyfill/pull/2) release-plan setup ([@NullVoxPopuli](https://github.com/NullVoxPopuli))\n\n#### :house: Internal\n* [#2](https://github.com/NullVoxPopuli/ember-rfc-502-explicit-services-polyfill/pull/2) release-plan setup ([@NullVoxPopuli](https://github.com/NullVoxPopuli))\n\n#### Committers: 1\n- [@NullVoxPopuli](https://github.com/NullVoxPopuli)\n"
+}
