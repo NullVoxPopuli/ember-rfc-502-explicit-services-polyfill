@@ -394,6 +394,15 @@ ownerRegister(this.owner, Greeter, MockGreeter);
 
 `ownerRegister` comes from `ember-rfc-502-explicit-services-polyfill/owner`. It sends a class key to the polyfill's registry, and passes anything else to the owner's own method. Ember's prototypes are not changed. Calls with a string or template literal, such as `owner.lookup('service:session')`, are not rewritten.
 
+Babel cannot see types, so the plugin only rewrites calls on an expression that looks like an owner:
+
+- a `getOwner(...)` call
+- an `owner` property, such as `this.owner` or `context.owner`
+- a variable named `owner`, `appInstance`, `applicationInstance`, `application`, `engine` or `engineInstance`
+- a `const` set from one of these, such as `const o = getOwner(this)`
+
+Other objects keep their own methods, such as `plugins.register(plugin)`.
+
 The plugin only changes files in packages that list the polyfill in `dependencies`, `devDependencies` or `peerDependencies`. Your addons are not changed unless they depend on the polyfill.
 
 ### Instances
@@ -415,6 +424,7 @@ The polyfill's `Service` has a static `create`, because Ember's container calls 
 - Classic `.extend({ foo: service(Key) })` does not support class keys. The string forms still work there.
 - Standard (stage 3) decorators are not supported.
 - Owner calls are only rewritten in files the babel plugin compiles. Calls through a computed name, such as `owner[method](Key)`, or with a spread first argument are not rewritten.
+- An owner with a name the plugin does not know, such as `this.appInstance.register(Key, Impl)`, is not rewritten. Use `register(owner, Key, Impl)` from the polyfill there.
 - The checks in `register` and the "no owner" message use `assert` from `@ember/debug`, which is removed from production builds.
 - Production builds minify class names, so error messages show the minified name.
 - Each engine instance is its own owner, so each engine gets its own instances.
