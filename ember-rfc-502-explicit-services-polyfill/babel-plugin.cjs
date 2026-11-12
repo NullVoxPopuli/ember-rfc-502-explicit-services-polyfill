@@ -12,6 +12,21 @@ const EMBER_OBJECT_HOOKS = new Map([
   ["init", "Move the code in init() to a constructor that calls super(owner)."],
   ["willDestroy", "Use registerDestructor() from @ember/destroyable instead of willDestroy()."],
 ]);
+const OWNER_NAMES = new Set([
+  "owner",
+  "appInstance",
+  "applicationInstance",
+  "application",
+  "engine",
+  "engineInstance",
+]);
+const TS_WRAPPERS = new Set([
+  "TSAsExpression",
+  "TSSatisfiesExpression",
+  "TSNonNullExpression",
+  "TSTypeAssertion",
+  "ParenthesizedExpression",
+]);
 const OWNER_METHODS = new Map([
   ["lookup", "ownerLookup"],
   ["register", "ownerRegister"],
@@ -123,7 +138,7 @@ function explicitServicesPolyfill(babel) {
   function ownerCalls(importUtil) {
     return {
       CallExpression(path) {
-        let method = ownerMethod(path.node);
+        let method = ownerMethod(path);
 
         if (!method) return;
 
@@ -139,7 +154,7 @@ function explicitServicesPolyfill(babel) {
         if (path.node.optional || !path.node.callee.optional) return;
         if (continuesChain(path)) return;
 
-        let method = ownerMethod(path.node);
+        let method = ownerMethod(path);
 
         if (!method) return;
 
@@ -163,7 +178,8 @@ function explicitServicesPolyfill(babel) {
     };
   }
 
-  function ownerMethod(node) {
+  function ownerMethod(path) {
+    let { node } = path;
     let callee = node.callee;
 
     if (callee.type !== "MemberExpression" && callee.type !== "OptionalMemberExpression") {
@@ -180,8 +196,40 @@ function explicitServicesPolyfill(babel) {
     let [first] = node.arguments;
 
     if (!first || first.type === "SpreadElement" || isName(first)) return undefined;
+    if (!isOwner(callee.object, path.scope)) return undefined;
 
     return method;
+  }
+
+  /**
+   * Whether an expression is an owner, judged by its shape, because babel cannot see types.
+   * Other objects have `register` and `lookup` methods too, such as jsep's `plugins.register(plugin)`,
+   * and those calls must keep their own method.
+   */
+  function isOwner(node, scope, seen = new Set()) {
+    while (TS_WRAPPERS.has(node.type)) node = node.expression;
+
+    if (node.type === "CallExpression") {
+      return node.callee.type === "Identifier" && node.callee.name === "getOwner";
+    }
+
+    if (node.type === "MemberExpression" || node.type === "OptionalMemberExpression") {
+      return (
+        !node.computed && node.property.type === "Identifier" && node.property.name === "owner"
+      );
+    }
+
+    if (node.type !== "Identifier") return false;
+    if (OWNER_NAMES.has(node.name)) return true;
+
+    let binding = scope.getBinding(node.name);
+
+    if (!binding || seen.has(binding) || !binding.path.isVariableDeclarator()) return false;
+    if (!binding.constant || !binding.path.node.init) return false;
+
+    seen.add(binding);
+
+    return isOwner(binding.path.node.init, binding.path.scope, seen);
   }
 
   function isOptionalChain(node) {

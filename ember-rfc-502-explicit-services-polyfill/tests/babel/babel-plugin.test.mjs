@@ -248,6 +248,40 @@ test("keeps the short-circuit of an optional call", () => {
   );
 });
 
+test("rewrites calls on an owner property and on an alias of an owner", () => {
+  transformsTo(
+    `context.owner.register(Greeter, MockGreeter);
+     const o = getOwner(this);
+     o.lookup(Session);`,
+    `import { ownerRegister, ownerLookup } from '${POLYFILL}/owner';
+     ownerRegister(context.owner, Greeter, MockGreeter);
+     const o = getOwner(this);
+     ownerLookup(o, Session);`,
+  );
+});
+
+test("sees through TypeScript casts on the owner", () => {
+  transformsTo(
+    `(this.owner as unknown as ClassKeyedOwner).lookup(Plain);
+     owner!.register(A, B);`,
+    `import { ownerLookup, ownerRegister } from '${POLYFILL}/owner';
+     ownerLookup(this.owner as unknown as ClassKeyedOwner, Plain);
+     ownerRegister(owner!, A, B);`,
+  );
+});
+
+test("leaves the same methods alone on objects that are not owners", () => {
+  unchanged(
+    [
+      "jsep.plugins.register({ name: 'ternary', init() {} });",
+      "dataProvider.register(grandparent, { requests });",
+      "this.toolkit.register(Plugin);",
+      "registry.lookup(Key);",
+      "let o = getOwner(this);\no = other;\no.lookup(Session);",
+    ].join("\n"),
+  );
+});
+
 test("leaves calls it cannot rewrite safely alone", () => {
   unchanged(
     [
