@@ -84,15 +84,19 @@ function isObject(value: unknown): value is object {
 /**
  * Whether `impl` can stand in for `key`.
  *
+ * A key that is not a class has no hierarchy to protect,
+ * so anything can stand in for it.
+ *
  * `class B extends A` sets the prototype of `B` to `A`,
- * and `{ __proto__: key, create() {} }` does the same for a factory object,
+ * and `{ __proto__: Key, create() {} }` does the same for a factory object,
  * so one `isPrototypeOf` check covers both.
  * A constructor function that only sets `B.prototype` needs the second check.
  */
 function isSubstitute(key: Key, impl: Key): boolean {
+  if (!isClassKey(key)) return true;
   if (impl === key || Object.prototype.isPrototypeOf.call(key, impl)) return true;
 
-  return isClassKey(key) && isClassKey(impl) && impl.prototype instanceof key;
+  return isClassKey(impl) && impl.prototype instanceof key;
 }
 
 function instantiate(key: Key, impl: Key, owner: Owner): object {

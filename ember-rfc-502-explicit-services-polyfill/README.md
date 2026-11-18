@@ -277,7 +277,7 @@ export const clock = {
 - `create` gets a props object with the owner set on it.
 - `create` must return an object.
 - The `name` property is optional. Error messages use it.
-- To override a factory, inherit from it: `{ __proto__: clock, create() {...} }`.
+- Any key can override a factory: `overrideService(owner, clock, fakeClock)`. There is no hierarchy check, so make sure that the override returns the same shape. TypeScript checks this.
 
 ### Module cycles
 
@@ -324,7 +324,7 @@ export function initialize(appInstance) {
 }
 ```
 
-`overrideService` throws if the implementation does not inherit from the key. A subclass inherits from its class. A factory object inherits from a key through `__proto__`. It also throws if the key was already resolved on that owner, because the override would have no effect.
+If the key is a class, `overrideService` throws if the implementation does not inherit from the key. A subclass inherits from its class. A factory object inherits from a class key through `__proto__`. If the key is not a class, there is no hierarchy check. `overrideService` also throws if the key was already resolved on that owner, because the override would have no effect.
 
 ## Testing
 

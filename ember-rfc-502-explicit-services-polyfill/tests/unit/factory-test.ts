@@ -87,12 +87,32 @@ module("Unit | factories", function (hooks) {
     assert.strictEqual(service(this.owner, clock).now(), 42);
   });
 
-  test("an unrelated factory cannot override a factory key", function (assert) {
-    const other = { name: "other", create: () => ({ now: () => 0 }) };
+  test("an unrelated factory can override a factory key", function (assert) {
+    const other = { name: "other", create: () => ({ now: () => 7 }) };
+
+    overrideService(this.owner, clock, other);
+
+    assert.strictEqual(service(this.owner, clock).now(), 7);
+  });
+
+  test("a class can override a factory key", function (assert) {
+    class FakeClock {
+      now() {
+        return 8;
+      }
+    }
+
+    overrideService(this.owner, clock, FakeClock);
+
+    assert.strictEqual(service(this.owner, clock).now(), 8);
+  });
+
+  test("an unrelated factory cannot override a class key", function (assert) {
+    const other = { name: "other", create: () => new Counter() };
 
     assert.throws(
-      () => overrideService(this.owner, clock, other),
-      /other is neither clock nor a subclass of it/,
+      () => overrideService(this.owner, Counter, other),
+      /other is neither \S+ nor a subclass of it/,
     );
   });
 
